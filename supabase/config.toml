@@ -1,0 +1,8 @@
+[functions.check-account]
+verify_jwt = false
+
+[functions.gemini-chat]
+verify_jwt = true
+
+[functions.gemini-plan]
+verify_jwt = true

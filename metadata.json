@@ -1,0 +1,9 @@
+{
+  "name": "GoTrip AI",
+  "description": "Your AI-powered travel companion for stress free trip planning.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera",
+    "geolocation"
+  ]
+}
