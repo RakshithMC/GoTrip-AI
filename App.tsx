@@ -2,17 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { TopNav, BottomNav } from './components/Navigation';
 import { HomeView, SearchView, AttractionDetailView, ProfileView, AccommodationDetailView, RestaurantDetailView, MyPlansView, ImageWithFallback } from './components/TravelViews';
 import { AIChat } from './components/AIChat';
-import { EmergencyModal, EditModal, ProfileEditModal, AddActionModal, UserContributionModal } from './components/Modals';
+import { EmergencyModal, EditModal, ProfileEditModal, AddActionModal, UserContributionModal, PreferenceEditModal } from './components/Modals';
 import { SmartPlan } from './components/SmartPlan';
 import { CityGuideModal } from './components/CityGuideModal';
 import { CountryGuideModal } from './components/CountryGuideModal';
 import { AuthModal } from './components/auth/AuthModal';
 import { LandingPage } from './components/LandingPage';
-import { Attraction, UserProfile, Notification, DreamTripResult } from './types';
+import { Attraction, UserProfile, Notification, DreamTripResult, UserPreferences } from './types';
 import { getTranslation } from './services/data';
 import { ExternalLink, Trash2 } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
 import { getCurrentProfile, updateCurrentProfile } from './services/profileService';
+import { getUserPreferences, updateUserPreferences } from './services/preferenceService';
 
 // Clean initial profile state
 const INITIAL_USER_PROFILE: UserProfile = {
@@ -49,6 +50,7 @@ function App() {
 
   // User Profile State
   const [userProfile, setUserProfile] = useState<UserProfile>(INITIAL_USER_PROFILE);
+  const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null);
 
   // Notifications State
   const [notifications, setNotifications] = useState<Notification[]>([
@@ -61,13 +63,14 @@ function App() {
   const [isEmergencyOpen, setIsEmergencyOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
+  const [isPreferenceEditOpen, setIsPreferenceEditOpen] = useState(false);
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const [contributionMode, setContributionMode] = useState<'add_place' | 'review' | 'photo' | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isSmartPlanOpen, setIsSmartPlanOpen] = useState(false);
   const [isCityGuideOpen, setIsCityGuideOpen] = useState(false);
   const [isCountryGuideOpen, setIsCountryGuideOpen] = useState(false);
-  
+
   // Theme state
   const [darkMode, setDarkMode] = useState(false);
   const [initialPlannerDestination, setInitialPlannerDestination] = useState<{ name: string; lat: number; lng: number } | null>(null);
@@ -108,6 +111,15 @@ function App() {
       }
     };
 
+    const loadDbPreferences = async (userId: string) => {
+      try {
+        const prefs = await getUserPreferences(userId);
+        setUserPreferences(prefs);
+      } catch (err) {
+        console.error('[App] Error loading user preferences:', err);
+      }
+    };
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setAuthSession(session);
       setAuthUser(session?.user ?? null);
@@ -119,6 +131,7 @@ function App() {
           email: session.user.email || prev.email,
         }));
         loadDbProfile(session.user.id, fullName || '', session.user.email || '');
+        loadDbPreferences(session.user.id);
       }
       setAuthLoading(false);
     });
@@ -135,11 +148,13 @@ function App() {
           email: session.user.email || prev.email,
         }));
         loadDbProfile(session.user.id, fullName || '', session.user.email || '');
+        loadDbPreferences(session.user.id);
         if (window.location.hash.includes('access_token=') || window.location.search.includes('code=')) {
           window.history.replaceState({}, '', window.location.pathname);
         }
       } else {
         setUserProfile(INITIAL_USER_PROFILE);
+        setUserPreferences(null);
       }
       setAuthLoading(false);
     });
@@ -526,7 +541,9 @@ function App() {
                 <ProfileView 
                   navigate={navigate} 
                   userProfile={userProfile} 
+                  userPreferences={userPreferences}
                   openEditModal={() => setIsProfileEditOpen(true)}
+                  openPreferenceModal={() => setIsPreferenceEditOpen(true)}
                   toggleTheme={() => setDarkMode(!darkMode)}
                   darkMode={darkMode}
                   onLogout={handleLogout}
@@ -584,6 +601,21 @@ function App() {
         onClose={() => setIsProfileEditOpen(false)} 
         profile={userProfile} 
         onSave={updateProfile}
+        language={userProfile.language}
+      />
+      <PreferenceEditModal
+        isOpen={isPreferenceEditOpen}
+        onClose={() => setIsPreferenceEditOpen(false)}
+        preferences={userPreferences}
+        onSave={async (newPrefs) => {
+          if (!authUser) return { success: false, error: 'User is not authenticated' };
+          const res = await updateUserPreferences(authUser.id, newPrefs);
+          if (res.success && res.data) {
+            setUserPreferences(res.data);
+            return { success: true };
+          }
+          return { success: false, error: res.error || 'Unable to save preferences.' };
+        }}
         language={userProfile.language}
       />
       <SmartPlan 

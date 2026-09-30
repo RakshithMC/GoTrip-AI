@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 /* Added missing icon imports Waves and Activity */
-import { MapPin, Search, Star, Sparkles, Wand2, Compass, Calendar, Utensils, ChevronLeft, Mic, ExternalLink, Map as MapIcon, Plane, Edit3, Globe, Mail, Phone, User, Ticket, Coffee, Info, Wifi, Bed, CheckCircle, Check, Share2, Bell, Shield, HelpCircle, LogOut, ChevronRight, X, Sun, Moon, Users, Briefcase, ArrowRight, Trash2, Settings, Hotel, Share, Clock, Image as ImageIcon, MessageCircle, DollarSign, Waves, Activity, CheckCheck, Heart } from 'lucide-react';
+import { MapPin, Search, Star, Sparkles, Wand2, Compass, Calendar, Utensils, ChevronLeft, Mic, ExternalLink, Map as MapIcon, Plane, Edit3, Globe, Mail, Phone, User, Ticket, Coffee, Info, Wifi, Bed, CheckCircle, Check, Share2, Bell, Shield, HelpCircle, LogOut, ChevronRight, X, Sun, Moon, Users, Briefcase, ArrowRight, Trash2, Settings, Hotel, Share, Clock, Image as ImageIcon, MessageCircle, DollarSign, Waves, Activity, CheckCheck, Heart, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { MOCK_DB, formatCurrency, getTranslation, CURRENCIES, getCountryCurrency } from '../services/data';
 import { generateAttractionSummary } from '../services/geminiService';
-import { Attraction, UserProfile, Notification, DreamTripResult } from '../types';
+import { Attraction, UserProfile, Notification, DreamTripResult, UserPreferences } from '../types';
 import { SettingsModal } from './Modals';
 import { supabase } from '../services/supabaseClient';
+import { recordPreferenceFeedback } from '../services/preferenceService';
 
 interface ViewProps {
   navigate: (route: string, params?: any) => void;
@@ -382,6 +383,39 @@ export const AttractionDetailView: React.FC<ViewProps & { id: string; addToItine
                             {saved ? <Check size={24} strokeWidth={3} /> : <Heart size={24} />} {saved ? t('saved') : t('add_wishlist')}
                         </button>
                     </div>
+
+                    {/* AI Preference Feedback Component */}
+                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 gap-3">
+                      <span>Rate this place for your AI travel profile:</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const session = (await supabase.auth.getSession()).data.session;
+                            if (session?.user) {
+                              await recordPreferenceFeedback(session.user.id, attr.category || attr.name, 'like');
+                              alert('Liked! Updated your AI travel preferences.');
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-xl border bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-blue-400 flex items-center gap-1.5 transition-all active:scale-95"
+                        >
+                          <ThumbsUp size={14} className="text-blue-500" /> Like
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const session = (await supabase.auth.getSession()).data.session;
+                            if (session?.user) {
+                              await recordPreferenceFeedback(session.user.id, attr.category || attr.name, 'dislike');
+                              alert('Noted! Added to disliked categories.');
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-xl border bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-red-400 flex items-center gap-1.5 transition-all active:scale-95"
+                        >
+                          <ThumbsDown size={14} className="text-red-500" /> Not Interested
+                        </button>
+                      </div>
+                    </div>
                 </div>
             </section>
 
@@ -420,7 +454,14 @@ export const AttractionDetailView: React.FC<ViewProps & { id: string; addToItine
     );
 };
 
-export const ProfileView: React.FC<ViewProps & { openEditModal: () => void; toggleTheme: () => void; darkMode: boolean; onLogout?: () => void }> = ({ navigate, userProfile, openEditModal, toggleTheme, darkMode, onLogout }) => {
+export const ProfileView: React.FC<ViewProps & {
+  openEditModal: () => void;
+  toggleTheme: () => void;
+  darkMode: boolean;
+  onLogout?: () => void;
+  userPreferences?: UserPreferences | null;
+  openPreferenceModal?: () => void;
+}> = ({ navigate, userProfile, openEditModal, toggleTheme, darkMode, onLogout, userPreferences, openPreferenceModal }) => {
   const [showSettings, setShowSettings] = useState(false);
   const [settingsType, setSettingsType] = useState<'privacy' | 'help'>('privacy');
   const t = (key: string) => getTranslation(userProfile.language, key);
@@ -487,6 +528,95 @@ export const ProfileView: React.FC<ViewProps & { openEditModal: () => void; togg
                 <span className="text-sm font-bold text-slate-900 dark:text-white">{item.value}</span>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* TRAVEL PREFERENCES (AI Learned) Card */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700/60 shadow-sm p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+              Travel Preferences (AI Learned)
+            </h3>
+            {openPreferenceModal && (
+              <button
+                onClick={openPreferenceModal}
+                className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+              >
+                <Edit3 size={13} />
+                Edit
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-2">
+                Travel Interests & Scores:
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {userPreferences?.interests && Object.keys(userPreferences.interests).length > 0 ? (
+                  Object.entries(userPreferences.interests)
+                    .filter(([_, score]) => score > 0)
+                    .map(([name, score]) => (
+                      <span
+                        key={name}
+                        className="px-2.5 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-xs font-bold flex items-center gap-1"
+                      >
+                        {name} <span className="text-[10px] opacity-75">({score > 0 ? `+${score}` : score})</span>
+                      </span>
+                    ))
+                ) : (
+                  <span className="text-xs text-slate-400">Nature, History, Culture, Food (Default)</span>
+                )}
+              </div>
+            </div>
+
+            {userPreferences?.dislikedInterests && userPreferences.dislikedInterests.length > 0 && (
+              <div>
+                <span className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5">
+                  Disliked Categories:
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {userPreferences.dislikedInterests.map(item => (
+                    <span
+                      key={item}
+                      className="px-2.5 py-1 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-xs font-bold"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4 pt-3 border-t border-slate-100 dark:border-slate-700/50 text-xs">
+              <div>
+                <span className="text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block text-[10px]">
+                  Travel Style
+                </span>
+                <span className="font-bold text-slate-800 dark:text-white">{userPreferences?.travelStyle || 'Balanced'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block text-[10px]">
+                  Preferred Pace
+                </span>
+                <span className="font-bold text-slate-800 dark:text-white">{userPreferences?.tripPace || 'Moderate'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block text-[10px]">
+                  Budget Range
+                </span>
+                <span className="font-bold text-slate-800 dark:text-white">
+                  ₹{(userPreferences?.budgetMin ?? 10000).toLocaleString()} – ₹{(userPreferences?.budgetMax ?? 50000).toLocaleString()}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block text-[10px]">
+                  Transport
+                </span>
+                <span className="font-bold text-slate-800 dark:text-white">{userPreferences?.preferredTransport || 'Transit'}</span>
+              </div>
+            </div>
           </div>
         </div>
 

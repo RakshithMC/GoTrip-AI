@@ -88,7 +88,15 @@ serve(async (req: Request) => {
       );
     }
 
-    const { history, userMessage, imageBase64, location, language = "English" } = await req.json();
+    const { history, userMessage, imageBase64, location, language = "English", preferences } = await req.json();
+
+    let prefText = "";
+    if (preferences) {
+      const likes = Array.isArray(preferences.likes) && preferences.likes.length > 0 ? preferences.likes.join(", ") : "General";
+      const dislikes = Array.isArray(preferences.dislikes) && preferences.dislikes.length > 0 ? preferences.dislikes.join(", ") : "None";
+      const style = preferences.travelStyle || "Balanced";
+      prefText = ` LEARNED USER PREFERENCES: User Likes: ${likes}. User Dislikes: ${dislikes}. Travel Style: ${style}. Prioritize topics aligned with user likes and avoid user dislikes.`;
+    }
 
     const primaryModel = "gemini-3.8-flash";
     const fallbackModel = "gemini-3.5-flash-lite";
@@ -119,7 +127,7 @@ serve(async (req: Request) => {
         systemInstruction: {
           parts: [
             {
-              text: `You are an advanced travel assistant. 1. Respond strictly in ${language} language. 2. Provide 3 brief follow-up questions in ${language} at the end after '---RELATED---'.`,
+              text: `You are an advanced travel assistant. 1. Respond strictly in ${language} language.${prefText} 2. Provide 3 brief follow-up questions in ${language} at the end after '---RELATED---'.`,
             },
           ],
         },

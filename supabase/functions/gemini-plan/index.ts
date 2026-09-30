@@ -154,6 +154,14 @@ serve(async (req: Request) => {
       );
     }
 
+    const { preferences } = payload || {};
+    if (preferences) {
+      const likes = Array.isArray(preferences.likes) && preferences.likes.length > 0 ? preferences.likes.join(", ") : "General";
+      const dislikes = Array.isArray(preferences.dislikes) && preferences.dislikes.length > 0 ? preferences.dislikes.join(", ") : "None";
+      const style = preferences.travelStyle || "Balanced";
+      promptText += `\nUSER LEARNED PREFERENCES CONTEXT: Preferred Categories: [${likes}]. Disliked Categories: [${dislikes}]. Travel Style: ${style}. Emphasize places matching user likes and minimize/avoid places matching user dislikes.`;
+    }
+
     let responseData: any;
     try {
       responseData = await callGeminiAPI(primaryModel, promptText, isJson);

@@ -156,7 +156,7 @@ export class AIService {
       const result = await executeWithRetry(() =>
         invokeEdgeFunction<GeneratedPlace[]>('gemini-plan', {
           action: 'cityGuide',
-          payload: { city, country, language }
+          payload: { city, country, language, preferences: options?.preferences }
         }, options)
       , { maxRetries: 2 });
 
@@ -185,7 +185,7 @@ export class AIService {
       const result = await executeWithRetry(() =>
         invokeEdgeFunction<GeneratedPlace[]>('gemini-plan', {
           action: 'countryDatabase',
-          payload: { country, language }
+          payload: { country, language, preferences: options?.preferences }
         }, options)
       , { maxRetries: 2 });
 
@@ -210,7 +210,7 @@ export class AIService {
       return await executeWithRetry(() =>
         invokeEdgeFunction<{ time: string; placeName: string; activity: string }[]>('gemini-plan', {
           action: 'dayTrip',
-          payload: { city, places, language }
+          payload: { city, places, language, preferences: options?.preferences }
         }, options)
       , { maxRetries: 2 });
     });
@@ -233,7 +233,8 @@ export class AIService {
         userMessage,
         imageBase64,
         location,
-        language
+        language,
+        preferences: options?.preferences
       }, options)
     , { maxRetries: 2 });
   }

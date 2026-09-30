@@ -64,6 +64,21 @@ export interface UserProfile {
   bio?: string;
 }
 
+export interface UserPreferences {
+  id?: string;
+  userId: string;
+  interests: Record<string, number>;
+  dislikedInterests: string[];
+  travelStyle: string;
+  activityPreferences: string[];
+  budgetMin: number;
+  budgetMax: number;
+  preferredTransport: string;
+  tripPace: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Source {
   title: string;
   uri: string;

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Camera, Star, AlertTriangle, User, Mail, Phone, MapPin, Save, Plus, MessageSquare, Image, Map as MapIcon, ArrowRight, Search, ArrowLeft, Locate, Minus, Link as LinkIcon, Calendar, Clock, Briefcase, CreditCard, CheckSquare, ExternalLink, Check, Loader2, ChevronDown, Upload, Trash2 } from 'lucide-react';
-import { UserProfile, DreamTripResult } from '../types';
+import { UserProfile, DreamTripResult, UserPreferences } from '../types';
 import { CURRENCIES, getEmergencyNumbers, LANGUAGES, getTranslation, COUNTRY_CODES } from '../services/data';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -817,4 +817,229 @@ export const SettingsModal: React.FC<ModalProps & { type: 'privacy' | 'help' }> 
             </div>
         </div>
     );
+};
+
+export const PreferenceEditModal: React.FC<ModalProps & {
+  preferences: UserPreferences | null;
+  onSave: (prefs: Partial<UserPreferences>) => Promise<{ success: boolean; error?: string } | void>;
+}> = ({ isOpen, onClose, preferences, onSave, language }) => {
+  const AVAILABLE_INTERESTS = [
+    'Nature', 'History', 'Culture', 'Adventure', 'Food', 'Shopping', 
+    'Beaches', 'Nightlife', 'Photography', 'Architecture', 'Family activities', 'Relaxation'
+  ];
+
+  const TRAVEL_STYLES = ['Relaxed', 'Balanced', 'Packed', 'Luxury', 'Budget', 'Backpacking', 'Family'];
+  const TRIP_PACES = ['Relaxed', 'Moderate', 'Fast-paced'];
+  const TRANSPORTS = ['Transit', 'Driving', 'Flight', 'Walking'];
+
+  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+  const [dislikedInterests, setDislikedInterests] = useState<string[]>([]);
+  const [travelStyle, setTravelStyle] = useState('Balanced');
+  const [tripPace, setTripPace] = useState('Moderate');
+  const [preferredTransport, setPreferredTransport] = useState('Transit');
+  const [budgetMin, setBudgetMin] = useState(10000);
+  const [budgetMax, setBudgetMax] = useState(50000);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen && preferences) {
+      const positiveInterests = Object.entries(preferences.interests || {})
+        .filter(([_, score]) => score > 0)
+        .map(([name]) => name);
+      setSelectedInterests(positiveInterests);
+      setDislikedInterests(preferences.dislikedInterests || []);
+      setTravelStyle(preferences.travelStyle || 'Balanced');
+      setTripPace(preferences.tripPace || 'Moderate');
+      setPreferredTransport(preferences.preferredTransport || 'Transit');
+      setBudgetMin(preferences.budgetMin ?? 10000);
+      setBudgetMax(preferences.budgetMax ?? 50000);
+    }
+  }, [isOpen, preferences]);
+
+  if (!isOpen) return null;
+
+  const toggleInterest = (interest: string) => {
+    setSelectedInterests(prev => 
+      prev.includes(interest) ? prev.filter(i => i !== interest) : [...prev, interest]
+    );
+    setDislikedInterests(prev => prev.filter(i => i !== interest));
+  };
+
+  const toggleDislike = (interest: string) => {
+    setDislikedInterests(prev => 
+      prev.includes(interest) ? prev.filter(i => i !== interest) : [...prev, interest]
+    );
+    setSelectedInterests(prev => prev.filter(i => i !== interest));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    setSaveError(null);
+
+    const interestsObj: Record<string, number> = { ...(preferences?.interests || {}) };
+    AVAILABLE_INTERESTS.forEach(item => {
+      if (selectedInterests.includes(item)) {
+        interestsObj[item] = Math.max(1, (interestsObj[item] || 0) + 1);
+      } else if (dislikedInterests.includes(item)) {
+        interestsObj[item] = -1;
+      }
+    });
+
+    try {
+      const res = await onSave({
+        interests: interestsObj,
+        dislikedInterests,
+        travelStyle,
+        tripPace,
+        preferredTransport,
+        budgetMin,
+        budgetMax,
+      });
+
+      setIsSaving(false);
+      if (res && res.success === false) {
+        setSaveError(res.error || 'Failed to save preferences.');
+      } else {
+        onClose();
+      }
+    } catch (err: any) {
+      setIsSaving(false);
+      setSaveError('Failed to save preferences.');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-800 animate-scale-up max-h-[90vh] overflow-y-auto no-scrollbar p-6 space-y-6">
+        <div className="flex justify-between items-center border-b border-gray-100 dark:border-slate-800 pb-4">
+          <h3 className="text-xl font-black text-slate-900 dark:text-white">Travel Preferences</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-slate-600 dark:hover:text-white"><X size={24} /></button>
+        </div>
+
+        {saveError && (
+          <div className="p-3 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 text-xs font-bold rounded-xl">
+            {saveError}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Preferred Interests */}
+          <div>
+            <label className="block text-xs font-bold uppercase text-slate-400 dark:text-slate-500 mb-2 tracking-wider">
+              Liked Interests
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {AVAILABLE_INTERESTS.map(interest => {
+                const isSelected = selectedInterests.includes(interest);
+                return (
+                  <button
+                    key={interest}
+                    type="button"
+                    onClick={() => toggleInterest(interest)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                      isSelected
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : 'bg-gray-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-blue-400'
+                    }`}
+                  >
+                    {interest}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Disliked Interests */}
+          <div>
+            <label className="block text-xs font-bold uppercase text-slate-400 dark:text-slate-500 mb-2 tracking-wider">
+              Disliked / Avoid Categories
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {AVAILABLE_INTERESTS.map(interest => {
+                const isDisliked = dislikedInterests.includes(interest);
+                return (
+                  <button
+                    key={interest}
+                    type="button"
+                    onClick={() => toggleDislike(interest)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                      isDisliked
+                        ? 'bg-red-600 text-white border-red-600 shadow-sm'
+                        : 'bg-gray-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-red-400'
+                    }`}
+                  >
+                    {interest}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Travel Style & Pace */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase text-slate-400 dark:text-slate-500 mb-1.5 tracking-wider">
+                Travel Style
+              </label>
+              <select
+                value={travelStyle}
+                onChange={e => setTravelStyle(e.target.value)}
+                className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-3 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {TRAVEL_STYLES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase text-slate-400 dark:text-slate-500 mb-1.5 tracking-wider">
+                Trip Pace
+              </label>
+              <select
+                value={tripPace}
+                onChange={e => setTripPace(e.target.value)}
+                className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-3 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {TRIP_PACES.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Budget Range */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase text-slate-400 dark:text-slate-500 mb-1.5 tracking-wider">
+                Min Budget (₹)
+              </label>
+              <input
+                type="number"
+                value={budgetMin}
+                onChange={e => setBudgetMin(Number(e.target.value))}
+                className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-3 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase text-slate-400 dark:text-slate-500 mb-1.5 tracking-wider">
+                Max Budget (₹)
+              </label>
+              <input
+                type="number"
+                value={budgetMax}
+                onChange={e => setBudgetMax(Number(e.target.value))}
+                className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-3 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isSaving}
+            className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-2xl shadow-lg transition-all text-base disabled:opacity-50"
+          >
+            {isSaving ? 'Saving Preferences...' : 'Save Preferences'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
 };

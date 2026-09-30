@@ -35,4 +35,12 @@ export interface AIRequestOptions {
   userProfile?: {
     language?: string;
   };
+  preferences?: {
+    likes?: string[];
+    dislikes?: string[];
+    travelStyle?: string;
+    tripPace?: string;
+    budgetMin?: number;
+    budgetMax?: number;
+  };
 }
