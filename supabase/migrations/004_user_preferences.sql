@@ -45,3 +45,9 @@ CREATE POLICY "Users can update own preferences"
 CREATE POLICY "Users can delete own preferences"
   ON public.user_preferences FOR DELETE
   USING (auth.uid() = user_id);
+
+-- 4. Explicit Grants
+GRANT ALL ON TABLE public.user_preferences TO postgres, authenticated, anon, service_role;
+
+-- 5. Reload PostgREST schema cache
+NOTIFY pgrst, 'reload schema';
