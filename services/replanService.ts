@@ -15,8 +15,9 @@
 
 import { AIService } from './ai/aiService';
 import { AIRequestOptions } from './ai/aiTypes';
-import { UserPreferences } from '../types';
+import { UserPreferences, ActivityExplanation } from '../types';
 import { fetchRouteData } from './geminiService';
+import { buildReplanExplanation } from './explanationService';
 
 // ─── Disruption Reasons ───────────────────────────────────────────────────────
 
@@ -44,6 +45,8 @@ export interface ItineraryActivity {
   replanReason?: string;
   latitude?: number;
   longitude?: number;
+  /** Feature 3: Optional explanation for this recommendation */
+  explanation?: ActivityExplanation;
 }
 
 // ─── Replan Request & Result ──────────────────────────────────────────────────
@@ -80,6 +83,8 @@ export interface ReplanResult {
   estimatedBudgetImpact: number | null;
   travelTimeFromPrev?: string;
   travelTimeToNext?: string;
+  /** Feature 3: Structured explanation for this replacement */
+  explanation?: ActivityExplanation;
 }
 
 // ─── OSRM Route Enrichment ────────────────────────────────────────────────────
@@ -196,10 +201,36 @@ export const generateReplan = async (
     nextActivity
   );
 
+  // Feature 3: Build structured, grounded explanation for the replacement
+  const structuredExplanation = buildReplanExplanation(
+    originalActivity.name,
+    result.replacement.name,
+    reasonLabel,
+    destination,
+    theme,
+    userPreferences,
+    osrmTimes.fromPrev,
+    osrmTimes.toNext,
+    result.estimatedBudgetImpact,
+    result.replacement.description,
+    result.replacement.icon
+  );
+
+  if (result.reason) {
+    structuredExplanation.summary = result.reason;
+  }
+
+  const replacementWithExplanation: ItineraryActivity = {
+    ...result.replacement,
+    explanation: structuredExplanation,
+  };
+
   return {
     ...result,
+    replacement: replacementWithExplanation,
     travelTimeFromPrev: osrmTimes.fromPrev,
     travelTimeToNext: osrmTimes.toNext,
+    explanation: structuredExplanation,
   };
 };
 

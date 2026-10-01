@@ -208,6 +208,12 @@ Generate ONE replacement activity that:
 5. Is feasible and realistic for ${destination}.
 6. Includes a concise explanation of why you chose it.${prefCtx}
 
+GROUNDING & EXPLAINABILITY RULES:
+- In the "reason" field, use ONLY the factual information supplied in the context (preferences, schedule context, disruption reason, destination).
+- Do NOT invent prices, exact distances, ratings, opening times, availability, or preferences not provided.
+- Every claim in "reason" must be traceable to the supplied inputs.
+- Keep the reason concise (1-2 sentences).
+
 RETURN FORMAT — pure JSON, no markdown, exactly this shape:
 {
   "replacement": {
@@ -218,7 +224,7 @@ RETURN FORMAT — pure JSON, no markdown, exactly this shape:
     "latitude": 0.0,
     "longitude": 0.0
   },
-  "reason": "One sentence: why this replacement was chosen, mentioning relevant factors.",
+  "reason": "1-2 sentences: grounded explanation of why this replacement was chosen based on supplied inputs.",
   "scheduleImpact": "None" | "Minor adjustment — schedule fits well" | "Schedule adjusted to fit the replacement.",
   "estimatedBudgetImpact": 0
 }`;

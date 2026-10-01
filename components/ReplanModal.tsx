@@ -303,6 +303,16 @@ const ReplanModal: React.FC<ReplanModalProps> = ({
                 <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
                   {replanResult.reason}
                 </p>
+                {replanResult.explanation?.reasons && replanResult.explanation.reasons.length > 0 && (
+                  <div className="mt-2.5 pt-2 border-t border-blue-100 dark:border-blue-900/30 space-y-1.5">
+                    {replanResult.explanation.reasons.map((r, idx) => (
+                      <div key={idx} className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                        <span className="text-emerald-600 dark:text-emerald-400 font-black">✓</span>
+                        <span>{r.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Schedule impact */}

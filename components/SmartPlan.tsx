@@ -11,12 +11,14 @@ import {
 } from 'lucide-react';
 import { toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
-import { DreamTripInput, DreamTripResult, TripTheme, UserProfile, GeneratedPlace, Attraction, RouteSegment, UserPreferences } from '../types';
+import { DreamTripInput, DreamTripResult, TripTheme, UserProfile, GeneratedPlace, Attraction, RouteSegment, UserPreferences, ActivityExplanation } from '../types';
 import { generateDreamTrip } from '../services/mockSmartPlan';
 import { CityGuideSection } from './CityGuideModal';
 import { CountryGuideSection } from './CountryGuideModal';
 import { CURRENCIES, formatCurrency } from '../services/data';
 import ReplanModal from './ReplanModal';
+import { ExplanationModal } from './ExplanationModal';
+import { buildActivityExplanation } from '../services/explanationService';
 import { ItineraryActivity } from '../services/replanService';
 import { updateItineraryInDatabase } from '../services/tripService';
 
@@ -525,6 +527,37 @@ export const SmartPlan: React.FC<SmartPlanProps> = ({
   const routeMapRef = useRef<any>(null);
 
   // ── Feature 2: Replan state ──────────────────────────────────────────────
+  // ── Feature 3: Explainable AI state ──────────────────────────────────────
+  const [explanationTarget, setExplanationTarget] = useState<{
+    activity: any;
+    explanation: ActivityExplanation | null;
+  } | null>(null);
+
+  const handleOpenExplanation = (act: any, dayNumber: number, dayTitle: string) => {
+    if (act.explanation) {
+      setExplanationTarget({
+        activity: act,
+        explanation: act.explanation,
+      });
+      return;
+    }
+    const explanation = buildActivityExplanation({
+      activityName: act.name,
+      activityDescription: act.description,
+      activityIcon: act.icon,
+      destination: tripResult?.destination || '',
+      theme: tripInput.theme,
+      dayNumber,
+      totalDays: tripResult?.itinerary?.length || 1,
+      dayTitle,
+      userPreferences,
+    });
+    setExplanationTarget({
+      activity: act,
+      explanation,
+    });
+  };
+
   const [replanTarget, setReplanTarget] = useState<{
     activity: ItineraryActivity;
     activityIndex: number;
@@ -1421,9 +1454,20 @@ export const SmartPlan: React.FC<SmartPlanProps> = ({
                                                                             </div>
                                                                             <p className="text-xs text-[#64748B] dark:text-slate-400 font-medium leading-relaxed mt-0.5">{act.description}</p>
                                                                         </div>
-                                                                        {/* Clear, always-visible Replan action button for EVERY activity */}
-                                                                        <button
-                                                                            onClick={() => setReplanTarget({
+                                                                        <div className="shrink-0 flex items-center gap-1.5">
+                                                                            {/* Feature 3: Why this? action button */}
+                                                                            <button
+                                                                                onClick={() => handleOpenExplanation(act, day.day || (i + 1), day.title)}
+                                                                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/25 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-700/60 rounded-xl transition-all shadow-xs hover:scale-[1.02] active:scale-[0.98]"
+                                                                                title="Understand why this activity was recommended"
+                                                                            >
+                                                                                <Sparkles size={13} className="text-blue-600 dark:text-blue-400" />
+                                                                                <span>Why this?</span>
+                                                                            </button>
+
+                                                                            {/* Clear, always-visible Replan action button for EVERY activity */}
+                                                                            <button
+                                                                                onClick={() => setReplanTarget({
                                                                                 activity: act as ItineraryActivity,
                                                                                 activityIndex: j,
                                                                                 dayIndex: i,
@@ -1433,7 +1477,8 @@ export const SmartPlan: React.FC<SmartPlanProps> = ({
                                                                         >
                                                                             <RefreshCw size={13} className="text-amber-600 dark:text-amber-400" />
                                                                             <span>Replan</span>
-                                                                        </button>
+                                                                            </button>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -1623,6 +1668,18 @@ export const SmartPlan: React.FC<SmartPlanProps> = ({
           userId={userId}
           onApply={handleApplyReplan}
           currencySymbol={currency.symbol}
+        />
+      )}
+
+      {/* Feature 3: Explainable AI Recommendations Modal */}
+      {explanationTarget && (
+        <ExplanationModal
+          isOpen={!!explanationTarget}
+          onClose={() => setExplanationTarget(null)}
+          itemName={explanationTarget.activity.name}
+          itemIcon={explanationTarget.activity.icon}
+          explanation={explanationTarget.explanation}
+          title={explanationTarget.activity.isReplanned ? "Why this replacement?" : "Why this was recommended"}
         />
       )}
     </div>

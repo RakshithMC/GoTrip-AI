@@ -191,7 +191,29 @@ export interface DailyItinerary {
     name: string;
     description: string;
     icon: 'food' | 'activity' | 'travel';
+    /** Feature 3: Optional pre-computed explanation for this recommendation */
+    explanation?: ActivityExplanation;
   }[];
+}
+
+// --- Feature 3: Explainable AI Recommendations ---
+
+/** A single factual reason supporting a recommendation */
+export interface ExplanationReason {
+  /** Factor category: user_preference, theme, schedule, budget, destination, route, category, replan_context */
+  factor: string;
+  /** Human-readable reason label */
+  label: string;
+  /** Whether this reason is supported by actual data */
+  supported: boolean;
+}
+
+/** Structured explanation for a recommended activity */
+export interface ActivityExplanation {
+  /** Brief summary sentence */
+  summary: string;
+  /** Structured list of factual reasons (2-4 items) */
+  reasons: ExplanationReason[];
 }
 
 export interface VisaRequirement {

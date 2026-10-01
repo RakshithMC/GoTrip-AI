@@ -7,6 +7,8 @@ import { Attraction, UserProfile, Notification, DreamTripResult, UserPreferences
 import { SettingsModal } from './Modals';
 import { supabase } from '../services/supabaseClient';
 import { recordPreferenceFeedback } from '../services/preferenceService';
+import { ExplanationModal } from './ExplanationModal';
+import { buildActivityExplanation } from '../services/explanationService';
 
 interface ViewProps {
   navigate: (route: string, params?: any) => void;
@@ -244,6 +246,18 @@ export const AttractionDetailView: React.FC<ViewProps & { id: string; addToItine
     const [loading, setLoading] = useState(false);
     const [showAllRestaurants, setShowAllRestaurants] = useState(false);
     const [showAllAccommodations, setShowAllAccommodations] = useState(false);
+    const [showWhyThis, setShowWhyThis] = useState(false);
+    const [loadedPrefs, setLoadedPrefs] = useState<UserPreferences | null>(null);
+
+    useEffect(() => {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user?.id) {
+          import('../services/preferenceService').then(({ getUserPreferences }) => {
+            getUserPreferences(session.user.id).then(prefs => setLoadedPrefs(prefs)).catch(() => {});
+          });
+        }
+      });
+    }, []);
     
     const t = (key: string) => getTranslation(userProfile.language, key);
 
@@ -289,7 +303,16 @@ export const AttractionDetailView: React.FC<ViewProps & { id: string; addToItine
         <div className="max-w-4xl mx-auto px-6 md:px-12 py-8 relative">
           <div className="flex flex-col gap-7">
             <section className="min-h-[99px] bg-indigo-50/60 dark:bg-indigo-900/10 p-6 rounded-[1.5rem] border border-indigo-100/50 dark:border-indigo-800 shadow-sm transition-all duration-300">
-              <div className="flex justify-between items-center mb-0"><div className="flex items-center gap-3 text-indigo-700 dark:text-indigo-300"><Sparkles size={20} className="fill-indigo-600 dark:fill-indigo-400 text-indigo-600" /><h3 className="font-extrabold text-[19px] tracking-tight">{t('ai_insight_title')}</h3></div><button onClick={handleGenerate} disabled={loading} className="text-[10px] bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 px-4 py-2 rounded-full font-black shadow-sm hover:shadow-md transition-all border border-indigo-100 dark:border-indigo-900 active:scale-95 whitespace-nowrap uppercase tracking-wider">{loading ? t('thinking') : t('ai_summary')}</button></div>
+              <div className="flex justify-between items-center mb-0"><div className="flex items-center gap-3 text-indigo-700 dark:text-indigo-300"><Sparkles size={20} className="fill-indigo-600 dark:fill-indigo-400 text-indigo-600" /><h3 className="font-extrabold text-[19px] tracking-tight">{t('ai_insight_title')}</h3></div><div className="flex items-center gap-2">
+                <button 
+                  onClick={() => setShowWhyThis(true)} 
+                  className="text-[10px] bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 px-3 py-2 rounded-full font-black shadow-sm hover:shadow-md transition-all border border-indigo-100 dark:border-indigo-900 active:scale-95 whitespace-nowrap uppercase tracking-wider flex items-center gap-1"
+                  title="Why this attraction was recommended"
+                >
+                  <Sparkles size={12} /> Why this?
+                </button>
+                <button onClick={handleGenerate} disabled={loading} className="text-[10px] bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 px-4 py-2 rounded-full font-black shadow-sm hover:shadow-md transition-all border border-indigo-100 dark:border-indigo-900 active:scale-95 whitespace-nowrap uppercase tracking-wider">{loading ? t('thinking') : t('ai_summary')}</button>
+              </div></div>
               {summary && <div className="mt-4 prose dark:prose-invert max-w-none text-slate-800 dark:text-slate-200 text-base font-bold leading-relaxed italic border-l-4 border-indigo-500/50 pl-4 py-0.5 animate-fade-in">"{summary}"</div>}
             </section>
 
@@ -433,6 +456,23 @@ export const AttractionDetailView: React.FC<ViewProps & { id: string; addToItine
                 <span className="text-[10px] font-black text-slate-800 dark:text-slate-300 text-center leading-tight uppercase tracking-wider">{t('Share location')}</span>
               </button>
             </section>
+
+{/* Feature 3: Why this attraction was recommended modal */}
+        <ExplanationModal
+          isOpen={showWhyThis}
+          onClose={() => setShowWhyThis(false)}
+          itemName={attr.name}
+          itemIcon="activity"
+          explanation={buildActivityExplanation({
+            activityName: attr.name,
+            activityDescription: attr.description,
+            activityIcon: 'activity',
+            destination: city?.name || '',
+            userPreferences: loadedPrefs,
+            fromDatabase: true,
+          })}
+          title="Why this was recommended"
+        />
 
             <div className="space-y-12">
                 {nearbyAccommodations.length > 0 && (
