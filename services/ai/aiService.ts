@@ -238,4 +238,39 @@ export class AIService {
       }, options)
     , { maxRetries: 2 });
   }
+
+  /**
+   * Generates an AI replacement for a single disrupted itinerary activity.
+   * Routes through gemini-plan Edge Function with action='replan'.
+   * Never exposes GEMINI_API_KEY to the browser.
+   */
+  public static async replanActivity(
+    payload: {
+      originalActivity: any;
+      prevActivity: any | null;
+      nextActivity: any | null;
+      destination: string;
+      dates: string;
+      budget: number;
+      dayNumber: number;
+      fullReason: string;
+      theme?: string;
+      preferences?: {
+        likes?: string[];
+        dislikes?: string[];
+        travelStyle?: string;
+        tripPace?: string;
+        budgetMin?: number;
+        budgetMax?: number;
+      };
+    },
+    options?: AIRequestOptions
+  ): Promise<any> {
+    return await executeWithRetry(() =>
+      invokeEdgeFunction<any>('gemini-plan', {
+        action: 'replan',
+        payload,
+      }, options)
+    , { maxRetries: 1 });
+  }
 }

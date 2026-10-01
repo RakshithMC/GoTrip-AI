@@ -147,6 +147,82 @@ serve(async (req: Request) => {
       promptText = `Generate a 1-day trip itinerary for ${city} featuring these places: ${placeList}.
       Return a JSON array of objects with fields: time, placeName, activity. Write descriptions in ${language}.`;
       isJson = true;
+    } else if (action === "replan") {
+      // ── Feature 2: Dynamic Trip Replanning ──────────────────────────────────
+      const {
+        originalActivity,
+        prevActivity,
+        nextActivity,
+        destination,
+        dates,
+        budget,
+        dayNumber,
+        fullReason,
+        theme = "General",
+        preferences: replanPrefs,
+      } = payload;
+
+      const prevCtx = prevActivity
+        ? `Previous activity: "${prevActivity.name}" at ${prevActivity.time}.`
+        : "No previous activity (this is the first activity of the day).";
+      const nextCtx = nextActivity
+        ? `Next activity: "${nextActivity.name}" at ${nextActivity.time}.`
+        : "No next activity (this is the last activity of the day).";
+
+      const prefCtx = replanPrefs
+        ? `
+USER LEARNED PREFERENCES (from Feature 1 AI Preference Learning):
+- Preferred categories: ${(replanPrefs.likes || []).join(", ") || "None specified"}
+- Disliked categories: ${(replanPrefs.dislikes || []).join(", ") || "None"}
+- Travel style: ${replanPrefs.travelStyle || "Balanced"}
+- Trip pace: ${replanPrefs.tripPace || "Moderate"}
+- Budget range: ${replanPrefs.budgetMin ?? "unset"} – ${replanPrefs.budgetMax ?? "unset"}
+Strongly prefer alternatives matching liked categories. Avoid disliked categories.`
+        : "";
+
+      promptText = `You are a professional travel planner performing a targeted itinerary adjustment for GoTrip AI.
+
+TRIP CONTEXT:
+- Destination: ${destination}
+- Dates: ${dates}
+- Trip theme: ${theme}
+- Total budget: ${budget}
+- Day: ${dayNumber}
+
+DISRUPTION:
+The following activity cannot proceed.
+- Activity name: "${originalActivity.name}"
+- Scheduled time: ${originalActivity.time}
+- Reason it cannot proceed: ${fullReason}
+
+SCHEDULE CONTEXT:
+- ${prevCtx}
+- ${nextCtx}
+
+YOUR TASK:
+Generate ONE replacement activity that:
+1. Fits the same approximate time slot (${originalActivity.time}).
+2. Is geographically practical given ${prevCtx} and ${nextCtx}.
+3. Does NOT suggest "${originalActivity.name}" or any activity by another name that is clearly the same place.
+4. Respects the trip budget of ${budget}.
+5. Is feasible and realistic for ${destination}.
+6. Includes a concise explanation of why you chose it.${prefCtx}
+
+RETURN FORMAT — pure JSON, no markdown, exactly this shape:
+{
+  "replacement": {
+    "time": "...",
+    "name": "...",
+    "description": "...",
+    "icon": "activity",
+    "latitude": 0.0,
+    "longitude": 0.0
+  },
+  "reason": "One sentence: why this replacement was chosen, mentioning relevant factors.",
+  "scheduleImpact": "None" | "Minor adjustment — schedule fits well" | "Schedule adjusted to fit the replacement.",
+  "estimatedBudgetImpact": 0
+}`;
+      isJson = true;
     } else {
       return new Response(
         JSON.stringify({ error: { code: "MALFORMED_RESPONSE", userMessage: "Invalid action type." } }),
@@ -224,6 +300,26 @@ serve(async (req: Request) => {
         placeName: item.placeName || item.name || "Attraction",
         activity: item.activity || item.description || item.short_description || "Visit and explore.",
       }));
+    } else if (action === "replan") {
+      // Normalize the replan result into a stable shape
+      const rep = parsedResult.replacement || {};
+      processedData = {
+        replacement: {
+          time: rep.time || payload.originalActivity?.time || "09:00 AM",
+          name: rep.name || "Alternative Activity",
+          description: rep.description || "A curated replacement for your itinerary.",
+          icon: rep.icon === "food" ? "food" : rep.icon === "travel" ? "travel" : "activity",
+          latitude: typeof rep.latitude === "number" ? rep.latitude : undefined,
+          longitude: typeof rep.longitude === "number" ? rep.longitude : undefined,
+          isReplanned: true,
+          replanReason: payload.fullReason || "User request",
+        },
+        reason: parsedResult.reason || "This activity fits your schedule and preferences.",
+        scheduleImpact: parsedResult.scheduleImpact || "None",
+        estimatedBudgetImpact: typeof parsedResult.estimatedBudgetImpact === "number"
+          ? parsedResult.estimatedBudgetImpact
+          : null,
+      };
     }
 
     return new Response(

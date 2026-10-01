@@ -1,4 +1,12 @@
-import { DreamTripInput, DreamTripResult, HotelOption, FlightOption, TripTheme, DailyItinerary } from '../types';
+const fs = require('fs');
+const path = require('path');
+
+// 1. Update services/mockSmartPlan.ts
+const mockPlanPath = path.join(__dirname, '..', 'services', 'mockSmartPlan.ts');
+let mockContent = fs.readFileSync(mockPlanPath, 'utf8');
+
+// Replace the entire itinerary generation logic with rich multi-day engine
+const newMockContent = `import { DreamTripInput, DreamTripResult, HotelOption, FlightOption, TripTheme, DailyItinerary } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { MOCK_DB } from './data';
 
@@ -65,7 +73,7 @@ function generateTime(startHour: number, endHour: number): string {
   const minute = Math.random() < 0.5 ? '00' : '30';
   const ampm = hour >= 12 && hour < 24 ? 'PM' : 'AM';
   const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-  return `${displayHour}:${minute} ${ampm}`;
+  return \`\${displayHour}:\${minute} \${ampm}\`;
 }
 
 function addDuration(startTime: string, durationTotalMins: number): string {
@@ -85,8 +93,8 @@ function addDuration(startTime: string, durationTotalMins: number): string {
   newHours = newHours % 12;
   if (newHours === 0) newHours = 12;
   
-  const newMinutesStr = newMinutes < 10 ? `0${newMinutes}` : newMinutes;
-  return `${newHours}:${newMinutesStr} ${newModifier}`;
+  const newMinutesStr = newMinutes < 10 ? \`0\${newMinutes}\` : newMinutes;
+  return \`\${newHours}:\${newMinutesStr} \${newModifier}\`;
 }
 
 function getAirportCode(locationName: string): string {
@@ -99,45 +107,45 @@ function getAirportCode(locationName: string): string {
 
 function getThematicExperience(theme: TripTheme, dest: string, slot: 'morning' | 'afternoon' | 'nature' | 'shopping'): string {
   if (theme === 'Adventure') {
-    if (slot === 'morning') return `High-Adrenaline Desert Safari & Dune Bashing in ${dest}`;
-    if (slot === 'afternoon') return `Coastal Watersports & Speedboat Excursion in ${dest}`;
-    if (slot === 'nature') return `Guided Mountain Trail & Ridge Viewpoint in ${dest}`;
-    return `Outdoor Gear & Extreme Adventure Outlets in ${dest}`;
+    if (slot === 'morning') return \`High-Adrenaline Desert Safari & Dune Bashing in \${dest}\`;
+    if (slot === 'afternoon') return \`Coastal Watersports & Speedboat Excursion in \${dest}\`;
+    if (slot === 'nature') return \`Guided Mountain Trail & Ridge Viewpoint in \${dest}\`;
+    return \`Outdoor Gear & Extreme Adventure Outlets in \${dest}\`;
   }
   if (theme === 'Relax') {
-    if (slot === 'morning') return `Luxury Thermal Spa & Mineral Bath Wellness in ${dest}`;
-    if (slot === 'afternoon') return `Tranquil Sunset Catamaran Cruise along ${dest} Coast`;
-    if (slot === 'nature') return `Botanical Gardens & Serenity Park Walk in ${dest}`;
-    return `Artisan Wellness Boutiques & Essential Oils Market`;
+    if (slot === 'morning') return \`Luxury Thermal Spa & Mineral Bath Wellness in \${dest}\`;
+    if (slot === 'afternoon') return \`Tranquil Sunset Catamaran Cruise along \${dest} Coast\`;
+    if (slot === 'nature') return \`Botanical Gardens & Serenity Park Walk in \${dest}\`;
+    return \`Artisan Wellness Boutiques & Essential Oils Market\`;
   }
   if (theme === 'Foodie') {
-    if (slot === 'morning') return `Chef-Led Street Food & Spice Market Tour in ${dest}`;
-    if (slot === 'afternoon') return `Hands-on Culinary Masterclass & Wine Tasting in ${dest}`;
-    if (slot === 'nature') return `Organic Farm & Vineyard Excursion in ${dest}`;
-    return `Gourmet Food Hall & Delicacy Curation in ${dest}`;
+    if (slot === 'morning') return \`Chef-Led Street Food & Spice Market Tour in \${dest}\`;
+    if (slot === 'afternoon') return \`Hands-on Culinary Masterclass & Wine Tasting in \${dest}\`;
+    if (slot === 'nature') return \`Organic Farm & Vineyard Excursion in \${dest}\`;
+    return \`Gourmet Food Hall & Delicacy Curation in \${dest}\`;
   }
   if (theme === 'Cultural') {
-    if (slot === 'morning') return `Ancient Temples & Sacred Heritage Architecture Tour in ${dest}`;
-    if (slot === 'afternoon') return `Traditional Artisan Workshop & Folk Craft Demonstration`;
-    if (slot === 'nature') return `Historic Canal Walk & Monument Gardens in ${dest}`;
-    return `Old Quarter Souk & Antique Curation in ${dest}`;
+    if (slot === 'morning') return \`Ancient Temples & Sacred Heritage Architecture Tour in \${dest}\`;
+    if (slot === 'afternoon') return \`Traditional Artisan Workshop & Folk Craft Demonstration\`;
+    if (slot === 'nature') return \`Historic Canal Walk & Monument Gardens in \${dest}\`;
+    return \`Old Quarter Souk & Antique Curation in \${dest}\`;
   }
   if (theme === 'Luxury') {
-    if (slot === 'morning') return `Private Helicopter Skyline Tour of ${dest}`;
-    if (slot === 'afternoon') return `VIP Yacht Cruise with Champagne & Ocean Breeze in ${dest}`;
-    if (slot === 'nature') return `Exclusive Private Beach & Island Lounge`;
-    return `Haute Couture & Designer Boulevard Shopping in ${dest}`;
+    if (slot === 'morning') return \`Private Helicopter Skyline Tour of \${dest}\`;
+    if (slot === 'afternoon') return \`VIP Yacht Cruise with Champagne & Ocean Breeze in \${dest}\`;
+    if (slot === 'nature') return \`Exclusive Private Beach & Island Lounge\`;
+    return \`Haute Couture & Designer Boulevard Shopping in \${dest}\`;
   }
   if (theme === 'Business') {
-    if (slot === 'morning') return `Modern Financial District & Innovation Hub Tour in ${dest}`;
-    if (slot === 'afternoon') return `Executive Lounge & High-Rise Networking Session`;
-    if (slot === 'nature') return `Urban Waterfront Boardwalk & Green Promenade in ${dest}`;
-    return `Premium Tech & Business Shopping Galleria in ${dest}`;
+    if (slot === 'morning') return \`Modern Financial District & Innovation Hub Tour in \${dest}\`;
+    if (slot === 'afternoon') return \`Executive Lounge & High-Rise Networking Session\`;
+    if (slot === 'nature') return \`Urban Waterfront Boardwalk & Green Promenade in \${dest}\`;
+    return \`Premium Tech & Business Shopping Galleria in \${dest}\`;
   }
-  if (slot === 'morning') return `Panoramic City Tour & Iconic Neighborhood Walk in ${dest}`;
-  if (slot === 'afternoon') return `Scenic River Cruise & Historical Harbor Discovery in ${dest}`;
-  if (slot === 'nature') return `Central Park & Botanical Conservatory in ${dest}`;
-  return `Local Crafts Market & Vibrant Shopping Quarter in ${dest}`;
+  if (slot === 'morning') return \`Panoramic City Tour & Iconic Neighborhood Walk in \${dest}\`;
+  if (slot === 'afternoon') return \`Scenic River Cruise & Historical Harbor Discovery in \${dest}\`;
+  if (slot === 'nature') return \`Central Park & Botanical Conservatory in \${dest}\`;
+  return \`Local Crafts Market & Vibrant Shopping Quarter in \${dest}\`;
 }
 
 function buildDestinationItinerary(
@@ -162,8 +170,8 @@ function buildDestinationItinerary(
 
     // Day 1: Arrival & Orientation
     if (dayNum === 1) {
-      const topAttraction = cityAttractions[0]?.name || `${destName} Skyline & City Center`;
-      const welcomeRest = cityRestaurants[0]?.name || `${destName} Local Cuisine Bistro`;
+      const topAttraction = cityAttractions[0]?.name || \`\${destName} Skyline & City Center\`;
+      const welcomeRest = cityRestaurants[0]?.name || \`\${destName} Local Cuisine Bistro\`;
       return {
         day: dayNum,
         date: dateStr,
@@ -172,19 +180,19 @@ function buildDestinationItinerary(
           {
             time: '09:00 AM',
             name: 'Airport Arrival & Hotel Check-in',
-            description: `Land in ${destName}, private transfer to accommodation, and settle in.`,
+            description: \`Land in \${destName}, private transfer to accommodation, and settle in.\`,
             icon: 'travel' as const,
           },
           {
             time: '01:00 PM',
-            name: `Welcome Lunch at ${welcomeRest}`,
-            description: `Enjoy an authentic first taste of local cuisine and regional specialties.`,
+            name: \`Welcome Lunch at \${welcomeRest}\`,
+            description: \`Enjoy an authentic first taste of local cuisine and regional specialties.\`,
             icon: 'food' as const,
           },
           {
             time: '04:00 PM',
-            name: `Sunset Exploration at ${topAttraction}`,
-            description: `Leisurely evening stroll and panoramic introductory views of ${destName}.`,
+            name: \`Sunset Exploration at \${topAttraction}\`,
+            description: \`Leisurely evening stroll and panoramic introductory views of \${destName}.\`,
             icon: 'activity' as const,
           },
         ],
@@ -193,9 +201,9 @@ function buildDestinationItinerary(
 
     // Day 2: Iconic Landmarks & Culture
     if (dayNum === 2) {
-      const landmark = cityAttractions[1]?.name || cityAttractions[0]?.name || `${destName} Historic Heritage Quarter`;
-      const lunchSpot = cityRestaurants[1]?.name || cityRestaurants[0]?.name || `${destName} Traditional Eatery`;
-      const afternoonSite = cityAttractions[2]?.name || `${destName} Cultural Museum & Arts Plaza`;
+      const landmark = cityAttractions[1]?.name || cityAttractions[0]?.name || \`\${destName} Historic Heritage Quarter\`;
+      const lunchSpot = cityRestaurants[1]?.name || cityRestaurants[0]?.name || \`\${destName} Traditional Eatery\`;
+      const afternoonSite = cityAttractions[2]?.name || \`\${destName} Cultural Museum & Arts Plaza\`;
       return {
         day: dayNum,
         date: dateStr,
@@ -203,20 +211,20 @@ function buildDestinationItinerary(
         activities: [
           {
             time: '09:00 AM',
-            name: `Guided Tour of ${landmark}`,
-            description: `Discover the rich history, iconic architecture, and celebrated landmarks of ${destName}.`,
+            name: \`Guided Tour of \${landmark}\`,
+            description: \`Discover the rich history, iconic architecture, and celebrated landmarks of \${destName}.\`,
             icon: 'activity' as const,
           },
           {
             time: '01:00 PM',
-            name: `Artisanal Lunch at ${lunchSpot}`,
-            description: `Savor signature regional dishes, fresh local ingredients, and local culinary culture.`,
+            name: \`Artisanal Lunch at \${lunchSpot}\`,
+            description: \`Savor signature regional dishes, fresh local ingredients, and local culinary culture.\`,
             icon: 'food' as const,
           },
           {
             time: '03:30 PM',
-            name: `Afternoon Immersion at ${afternoonSite}`,
-            description: `Explore renowned galleries, historical exhibits, and vibrant heritage streets.`,
+            name: \`Afternoon Immersion at \${afternoonSite}\`,
+            description: \`Explore renowned galleries, historical exhibits, and vibrant heritage streets.\`,
             icon: 'activity' as const,
           },
         ],
@@ -226,29 +234,29 @@ function buildDestinationItinerary(
     // Day 3: Thematic Immersion & Local Experiences
     if (dayNum === 3) {
       const expName = cityExperiences[0] || getThematicExperience(theme, destName, 'morning');
-      const lunchSpot = cityRestaurants[2]?.name || cityRestaurants[0]?.name || `${destName} Waterfront Terrace`;
+      const lunchSpot = cityRestaurants[2]?.name || cityRestaurants[0]?.name || \`\${destName} Waterfront Terrace\`;
       const afternoonExp = cityExperiences[1] || getThematicExperience(theme, destName, 'afternoon');
       return {
         day: dayNum,
         date: dateStr,
-        title: `${theme} Immersion & Hidden Gems`,
+        title: \`\${theme} Immersion & Hidden Gems\`,
         activities: [
           {
             time: '09:30 AM',
-            name: `${expName}`,
-            description: `Handpicked immersive experience tailored to your ${theme.toLowerCase()} travel style.`,
+            name: \`\${expName}\`,
+            description: \`Handpicked immersive experience tailored to your \${theme.toLowerCase()} travel style.\`,
             icon: 'activity' as const,
           },
           {
             time: '01:00 PM',
-            name: `Scenic Lunch at ${lunchSpot}`,
-            description: `Relaxed dining with panoramic views and regional gastronomy.`,
+            name: \`Scenic Lunch at \${lunchSpot}\`,
+            description: \`Relaxed dining with panoramic views and regional gastronomy.\`,
             icon: 'food' as const,
           },
           {
             time: '04:00 PM',
-            name: `${afternoonExp}`,
-            description: `Discover vibrant artisan markets, scenic viewpoints, and local favorite spots.`,
+            name: \`\${afternoonExp}\`,
+            description: \`Discover vibrant artisan markets, scenic viewpoints, and local favorite spots.\`,
             icon: 'activity' as const,
           },
         ],
@@ -258,7 +266,7 @@ function buildDestinationItinerary(
     // Day 4: Scenic Views, Markets & Leisure
     if (dayNum === 4) {
       const morningExp = getThematicExperience(theme, destName, 'nature');
-      const lunchSpot = cityRestaurants[3]?.name || cityRestaurants[1]?.name || `${destName} Old Town Cafe`;
+      const lunchSpot = cityRestaurants[3]?.name || cityRestaurants[1]?.name || \`\${destName} Old Town Cafe\`;
       const afternoonSite = getThematicExperience(theme, destName, 'shopping');
       return {
         day: dayNum,
@@ -267,20 +275,20 @@ function buildDestinationItinerary(
         activities: [
           {
             time: '09:30 AM',
-            name: `${morningExp}`,
-            description: `Enjoy scenic natural landscapes, botanical gardens, and fresh morning atmosphere.`,
+            name: \`\${morningExp}\`,
+            description: \`Enjoy scenic natural landscapes, botanical gardens, and fresh morning atmosphere.\`,
             icon: 'activity' as const,
           },
           {
             time: '01:00 PM',
-            name: `Lunch & Pastry Tasting at ${lunchSpot}`,
-            description: `Taste local artisanal desserts, specialties, and specialty tea/coffee.`,
+            name: \`Lunch & Pastry Tasting at \${lunchSpot}\`,
+            description: \`Taste local artisanal desserts, specialties, and specialty tea/coffee.\`,
             icon: 'food' as const,
           },
           {
             time: '03:30 PM',
-            name: `${afternoonSite}`,
-            description: `Explore boutique lanes, craft markets, and unique cultural souvenirs in ${destName}.`,
+            name: \`\${afternoonSite}\`,
+            description: \`Explore boutique lanes, craft markets, and unique cultural souvenirs in \${destName}.\`,
             icon: 'activity' as const,
           },
         ],
@@ -297,14 +305,14 @@ function buildDestinationItinerary(
         activities: [
           {
             time: '09:30 AM',
-            name: `Morning Promenade & Last Sightseeing in ${destName}`,
-            description: `Capture final scenic photos and take a tranquil morning walk through ${destName}.`,
+            name: \`Morning Promenade & Last Sightseeing in \${destName}\`,
+            description: \`Capture final scenic photos and take a tranquil morning walk through \${destName}.\`,
             icon: 'activity' as const,
           },
           {
             time: '12:30 PM',
-            name: `Farewell Feast at ${destName} Viewpoint`,
-            description: `A memorable concluding meal celebrating the best flavours of the journey.`,
+            name: \`Farewell Feast at \${destName} Viewpoint\`,
+            description: \`A memorable concluding meal celebrating the best flavours of the journey.\`,
             icon: 'food' as const,
           },
           {
@@ -321,24 +329,24 @@ function buildDestinationItinerary(
     return {
       day: dayNum,
       date: dateStr,
-      title: `Regional Excursion & Natural Heritage - Day ${dayNum}`,
+      title: \`Regional Excursion & Natural Heritage - Day \${dayNum}\`,
       activities: [
         {
           time: '09:00 AM',
-          name: `Day Excursion to Surrounding ${destName} Countryside`,
-          description: `Full morning excursion exploring scenic valleys, historic hamlets, and nature sanctuaries.`,
+          name: \`Day Excursion to Surrounding \${destName} Countryside\`,
+          description: \`Full morning excursion exploring scenic valleys, historic hamlets, and nature sanctuaries.\`,
           icon: 'travel' as const,
         },
         {
           time: '01:00 PM',
-          name: `Country Tavern Feast & Regional Tasting`,
-          description: `Rustic farm-to-table lunch highlighting seasonal harvests and local vintage.`,
+          name: \`Country Tavern Feast & Regional Tasting\`,
+          description: \`Rustic farm-to-table lunch highlighting seasonal harvests and local vintage.\`,
           icon: 'food' as const,
         },
         {
           time: '04:00 PM',
-          name: `Artisan Village Walk & Scenic Lookout`,
-          description: `Stroll through peaceful cobblestone villages with breathtaking sunset panoramas.`,
+          name: \`Artisan Village Walk & Scenic Lookout\`,
+          description: \`Stroll through peaceful cobblestone villages with breathtaking sunset panoramas.\`,
           icon: 'activity' as const,
         },
       ],
@@ -377,7 +385,7 @@ export const generateDreamTrip = async (input: DreamTripInput): Promise<DreamTri
   const formatDuration = (hours: number) => {
     const h = Math.floor(hours);
     const m = Math.round((hours - h) * 60);
-    return { str: `${h}h ${m}m`, totalMins: h * 60 + m };
+    return { str: \`\${h}h \${m}m\`, totalMins: h * 60 + m };
   };
 
   const outboundInfo = formatDuration(outboundDurationTotal);
@@ -399,9 +407,9 @@ export const generateDreamTrip = async (input: DreamTripInput): Promise<DreamTri
     const airline = selectedAirlines[idx];
     const depTime = generateTime(6 + idx * 3, 10 + idx * 3); 
     return {
-      id: `out_${idx}`,
+      id: \`out_\${idx}\`,
       airline: airline.name,
-      flightNumber: `${airline.code}${Math.floor(Math.random() * 899) + 100}`,
+      flightNumber: \`\${airline.code}\${Math.floor(Math.random() * 899) + 100}\`,
       departureTime: depTime,
       arrivalTime: addDuration(depTime, outboundInfo.totalMins),
       duration: outboundInfo.str,
@@ -416,9 +424,9 @@ export const generateDreamTrip = async (input: DreamTripInput): Promise<DreamTri
     const airline = selectedAirlines[idx];
     const depTime = generateTime(10 + (idx-2) * 3, 16 + (idx-2) * 3);
     return {
-      id: `ret_${idx}`,
+      id: \`ret_\${idx}\`,
       airline: airline.name,
-      flightNumber: `${airline.code}${Math.floor(Math.random() * 899) + 100}`,
+      flightNumber: \`\${airline.code}\${Math.floor(Math.random() * 899) + 100}\`,
       departureTime: depTime,
       arrivalTime: addDuration(depTime, returnInfo.totalMins),
       duration: returnInfo.str,
@@ -447,7 +455,7 @@ export const generateDreamTrip = async (input: DreamTripInput): Promise<DreamTri
             image: randomHotel.image,
             rating: randomHotel.rating,
             pricePerNight: randomHotel.priceValue,
-            address: `${randomHotel.name}, ${realCity.name}`,
+            address: \`\${randomHotel.name}, \${realCity.name}\`,
             amenities: randomHotel.amenities,
             website: randomHotel.website
         };
@@ -455,16 +463,16 @@ export const generateDreamTrip = async (input: DreamTripInput): Promise<DreamTri
   }
 
   if (!selectedHotel) {
-     const fallbackName = `Grand ${destName} Resort`;
+     const fallbackName = \`Grand \${destName} Resort\`;
      selectedHotel = {
         id: 'ht_generated',
         name: fallbackName,
         image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80',
         rating: 4.8,
         pricePerNight: 180,
-        address: `123 Main Boulevard, ${destName}`,
+        address: \`123 Main Boulevard, \${destName}\`,
         amenities: ['Pool', 'Spa', 'Free Wifi', 'Breakfast'],
-        website: `https://www.google.com/search?q=${encodeURIComponent(fallbackName + " official website")}`
+        website: \`https://www.google.com/search?q=\${encodeURIComponent(fallbackName + " official website")}\`
      };
   }
 
@@ -473,13 +481,13 @@ export const generateDreamTrip = async (input: DreamTripInput): Promise<DreamTri
   return {
     id: uuidv4(),
     destination: destName,
-    dates: `${new Date(input.startDate).toLocaleDateString()} - ${new Date(input.endDate).toLocaleDateString()}`,
+    dates: \`\${new Date(input.startDate).toLocaleDateString()} - \${new Date(input.endDate).toLocaleDateString()}\`,
     travelers: input.travelers,
     totalEstimatedCost: input.budget > 0 ? Math.min(input.budget, totalCost) : totalCost,
     highlights: [
-      `Sunset at ${destName} Skyline`,
-      `Exclusive ${input.theme} Highlights & Local Culture`,
-      `Curated Culinary Journey across ${destName}`
+      \`Sunset at \${destName} Skyline\`,
+      \`Exclusive \${input.theme} Highlights & Local Culture\`,
+      \`Curated Culinary Journey across \${destName}\`
     ],
     flights: {
       outbound: outboundFlights,
@@ -505,10 +513,14 @@ export const generateDreamTrip = async (input: DreamTripInput): Promise<DreamTri
         ],
         mode: 'Flight',
         duration: outboundInfo.str,
-        distance: `${Math.round(distanceKm)} km`,
+        distance: \`\${Math.round(distanceKm)} km\`,
         durationText: outboundInfo.str,
-        distanceText: `${Math.round(distanceKm)} km`,
+        distanceText: \`\${Math.round(distanceKm)} km\`,
       }
     ]
   };
 };
+`;
+
+fs.writeFileSync(mockPlanPath, newMockContent, 'utf8');
+console.log('Successfully upgraded mockSmartPlan.ts with multi-day distinct itinerary engine.');

@@ -14,6 +14,7 @@ import { ExternalLink, Trash2 } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
 import { getCurrentProfile, updateCurrentProfile } from './services/profileService';
 import { getUserPreferences, updateUserPreferences } from './services/preferenceService';
+import { saveTripToDatabase, fetchUserTrips } from './services/tripService';
 
 // Clean initial profile state
 const INITIAL_USER_PROFILE: UserProfile = {
@@ -120,6 +121,17 @@ function App() {
       }
     };
 
+    const loadDbTrips = async (userId: string) => {
+      try {
+        const trips = await fetchUserTrips(userId);
+        if (trips && trips.length > 0) {
+          setSavedPlans(trips);
+        }
+      } catch (err) {
+        console.error('[App] Error loading user trips:', err);
+      }
+    };
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setAuthSession(session);
       setAuthUser(session?.user ?? null);
@@ -132,6 +144,7 @@ function App() {
         }));
         loadDbProfile(session.user.id, fullName || '', session.user.email || '');
         loadDbPreferences(session.user.id);
+        loadDbTrips(session.user.id);
       }
       setAuthLoading(false);
     });
@@ -149,12 +162,14 @@ function App() {
         }));
         loadDbProfile(session.user.id, fullName || '', session.user.email || '');
         loadDbPreferences(session.user.id);
+        loadDbTrips(session.user.id);
         if (window.location.hash.includes('access_token=') || window.location.search.includes('code=')) {
           window.history.replaceState({}, '', window.location.pathname);
         }
       } else {
         setUserProfile(INITIAL_USER_PROFILE);
         setUserPreferences(null);
+        setSavedPlans([]);
       }
       setAuthLoading(false);
     });
@@ -238,6 +253,8 @@ function App() {
     setAuthSession(null);
     setAuthUser(null);
     setUserProfile(INITIAL_USER_PROFILE);
+    setUserPreferences(null);
+    setSavedPlans([]);
     navigatePath('/');
   };
 
@@ -320,7 +337,25 @@ function App() {
         if (exists) return prev.map(p => p.id === plan.id ? plan : p);
         return [...prev, plan];
     });
+    if (authUser?.id) {
+      saveTripToDatabase(authUser.id, plan).catch(err => {
+        console.warn('[App] Could not persist trip to Supabase:', err);
+      });
+    }
     navigate('my-plans');
+  };
+
+  const handleUpdatePlan = (plan: DreamTripResult) => {
+    setSavedPlans(prev => {
+        const exists = prev.find(p => p.id === plan.id);
+        if (exists) return prev.map(p => p.id === plan.id ? plan : p);
+        return [...prev, plan];
+    });
+    if (authUser?.id) {
+      saveTripToDatabase(authUser.id, plan).catch(err => {
+        console.warn('[App] Could not persist plan update to Supabase:', err);
+      });
+    }
   };
 
   const handleViewPlan = (plan: DreamTripResult) => {
@@ -634,6 +669,9 @@ function App() {
         initialDestination={initialPlannerDestination}
         isLoggedIn={!!authUser}
         onOpenAuthModal={() => openAuthModal('login')}
+        userPreferences={userPreferences}
+        userId={authUser?.id}
+        onUpdatePlan={handleUpdatePlan}
       />
       <CityGuideModal 
         isOpen={isCityGuideOpen}

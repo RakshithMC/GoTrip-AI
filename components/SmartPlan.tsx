@@ -7,15 +7,19 @@ import {
   Utensils, Search, Plus, Minus, Locate, Layers, ArrowLeft, 
   Loader2, Compass, Database, Clock, Sun, AlertCircle, Star, Check, ChevronDown, Wifi, Bed, Info,
   ShieldCheck, Upload, Trash2, File, User, Image as ImageIcon,
-  DollarSign, FileWarning, Download, Car, Bus, Train, Footprints, Maximize2, Minimize2
+  DollarSign, FileWarning, Download, Car, Bus, Train, Footprints, Maximize2, Minimize2, RefreshCw
 } from 'lucide-react';
 import { toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
-import { DreamTripInput, DreamTripResult, TripTheme, UserProfile, GeneratedPlace, Attraction, RouteSegment } from '../types';
+import { DreamTripInput, DreamTripResult, TripTheme, UserProfile, GeneratedPlace, Attraction, RouteSegment, UserPreferences } from '../types';
 import { generateDreamTrip } from '../services/mockSmartPlan';
 import { CityGuideSection } from './CityGuideModal';
 import { CountryGuideSection } from './CountryGuideModal';
 import { CURRENCIES, formatCurrency } from '../services/data';
+import ReplanModal from './ReplanModal';
+import { ItineraryActivity } from '../services/replanService';
+import { updateItineraryInDatabase } from '../services/tripService';
+
 
 interface SmartPlanProps {
   isOpen: boolean;
@@ -30,7 +34,14 @@ interface SmartPlanProps {
   initialDestination?: { name: string; lat: number; lng: number } | null;
   isLoggedIn?: boolean;
   onOpenAuthModal?: () => void;
+  /** Feature 1: user preferences for replanning context */
+  userPreferences?: UserPreferences | null;
+  /** Authenticated user ID for preference feedback */
+  userId?: string;
+  /** Optional callback to notify parent of plan updates (e.g. replanning) */
+  onUpdatePlan?: (plan: DreamTripResult) => void;
 }
+
 
 const MapPicker: React.FC<{ 
   label: string; 
@@ -208,7 +219,7 @@ const MapPicker: React.FC<{
   );
 };
 
-const RouteMap = React.forwardRef<any, { route: RouteSegment[] }>(({ route }, ref) => {
+const RouteMap = React.forwardRef<any, { route?: RouteSegment[] }>(({ route = [] }, ref) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -264,7 +275,7 @@ const RouteMap = React.forwardRef<any, { route: RouteSegment[] }>(({ route }, re
 
       const bounds: any[] = [];
 
-      route.forEach((segment) => {
+      (route || []).forEach((segment) => {
         if (!segment.coords || segment.coords.length < 2) return;
         
         const pathCoords = segment.coords;
@@ -411,9 +422,10 @@ const RouteMap = React.forwardRef<any, { route: RouteSegment[] }>(({ route }, re
       });
 
       // Start/End Pins
-      if (route.length > 0) {
-          const first = route[0].coords![0];
-          const last = route[route.length-1].coords![1];
+      const safeRoute = route || [];
+      if (safeRoute.length > 0 && safeRoute[0]?.coords?.[0] && safeRoute[safeRoute.length-1]?.coords?.[1]) {
+          const first = safeRoute[0].coords[0];
+          const last = safeRoute[safeRoute.length-1].coords[1];
           
           const startPin = L.divIcon({
               html: `<div class="flex flex-col items-center"><div class="px-2 py-1 bg-white rounded shadow-lg border border-slate-200 text-[9px] font-black uppercase mb-1">Start</div><div class="w-4 h-4 bg-blue-600 rounded-full border-4 border-white shadow-xl"></div></div>`,
@@ -500,6 +512,9 @@ export const SmartPlan: React.FC<SmartPlanProps> = ({
   initialDestination,
   isLoggedIn = false,
   onOpenAuthModal,
+  userPreferences,
+  userId,
+  onUpdatePlan,
 }) => {
   const [step, setStep] = useState<'input' | 'loading' | 'result'>('input');
   const [tripResult, setTripResult] = useState<DreamTripResult | null>(null);
@@ -508,7 +523,14 @@ export const SmartPlan: React.FC<SmartPlanProps> = ({
   const [visaFiles, setVisaFiles] = useState<File[]>([]);
   const visaFileInputRef = useRef<HTMLInputElement>(null);
   const routeMapRef = useRef<any>(null);
-  
+
+  // ── Feature 2: Replan state ──────────────────────────────────────────────
+  const [replanTarget, setReplanTarget] = useState<{
+    activity: ItineraryActivity;
+    activityIndex: number;
+    dayIndex: number;
+  } | null>(null);
+
   const currency = CURRENCIES.find(c => c.code === userProfile.currency) || CURRENCIES[0];
   const [tripInput, setTripInput] = useState<DreamTripInput>({ 
     departureLocation: null, 
@@ -567,6 +589,48 @@ export const SmartPlan: React.FC<SmartPlanProps> = ({
   }, [isOpen, initialPlan, initialDestination]);
 
   if (!isOpen) return null;
+
+  // ── Feature 2: Apply replacement to local trip result state ──────────────
+  const handleApplyReplan = (replacement: ItineraryActivity) => {
+    if (!replanTarget || !tripResult) return;
+    const { dayIndex, activityIndex } = replanTarget;
+
+    const targetDay = tripResult.itinerary[dayIndex];
+    const dayNumber = targetDay?.day ?? dayIndex + 1;
+
+    const updatedActivities = targetDay.activities.map((act, aIdx) =>
+      aIdx !== activityIndex ? act : {
+        ...replacement,
+        // Preserve icon type compatibility
+        icon: (replacement.icon === 'food' || replacement.icon === 'travel' ? replacement.icon : 'activity') as 'food' | 'activity' | 'travel',
+      }
+    );
+
+    const updatedItinerary = tripResult.itinerary.map((day, dIdx) => {
+      if (dIdx !== dayIndex) return day;
+      return { ...day, activities: updatedActivities };
+    });
+
+    const updatedTrip: DreamTripResult = {
+      ...tripResult,
+      itinerary: updatedItinerary,
+    };
+
+    setTripResult(updatedTrip);
+    setReplanTarget(null);
+
+    // Notify parent to keep savedPlans updated
+    if (onUpdatePlan) {
+      onUpdatePlan(updatedTrip);
+    }
+
+    // Persist single affected day to database if user is authenticated and trip is saved
+    if (userId && tripResult.id) {
+      updateItineraryInDatabase(userId, tripResult.id, dayNumber, updatedActivities).catch(err => {
+        console.warn('[SmartPlan] Error persisting replanned itinerary to DB:', err);
+      });
+    }
+  };
 
   const handleGenerate = async () => {
     if (!isLoggedIn) {
@@ -756,7 +820,7 @@ export const SmartPlan: React.FC<SmartPlanProps> = ({
         y += 10;
     }
 
-    tripResult.route.forEach((segment, idx) => {
+    (tripResult.route || []).forEach((segment, idx) => {
       if (y > 220) {
         doc.addPage();
         addPageHeader("COMPLETE TRIP ROUTE (CONTINUED)");
@@ -1132,7 +1196,7 @@ export const SmartPlan: React.FC<SmartPlanProps> = ({
                                  <div className={activeTab === 'Route' ? 'flex flex-col h-full animate-fade-in' : 'opacity-0 absolute pointer-events-none w-full h-full'}>
                                      {tripResult && (
                                          <div className="max-w-3xl mx-auto space-y-6 pb-24 p-6 no-scrollbar overflow-y-auto h-full w-full">
-                                             <RouteMap ref={routeMapRef} route={tripResult.route} />
+                                             <RouteMap ref={routeMapRef} route={tripResult.route || []} />
                                              
                                              <div className="bg-white dark:bg-slate-800 p-5 rounded-[2rem] border border-slate-100 dark:border-slate-700 shadow-sm space-y-4">
                                                  <div className="flex items-center justify-between">
@@ -1151,7 +1215,8 @@ export const SmartPlan: React.FC<SmartPlanProps> = ({
                                                      <div className="absolute left-[21px] top-4 bottom-4 w-0.5 bg-gradient-to-b from-blue-500 via-indigo-500 to-purple-500 rounded-full" />
                                                      
                                                      <div className="space-y-8 relative">
-                                                         {tripResult.route.map((segment, idx) => {
+                                                         {tripResult.route && tripResult.route.length > 0 ? (
+                                                          tripResult.route.map((segment, idx) => {
                                                              const ModeIcon = {
                                                                  'Flight': Plane,
                                                                  'Car': Car,
@@ -1199,7 +1264,14 @@ export const SmartPlan: React.FC<SmartPlanProps> = ({
                                                                      </div>
                                                                  </div>
                                                              );
-                                                         })}
+                                                         })
+                                                     ) : (
+                                                         <div className="text-center py-6 px-4 bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
+                                                             <Compass size={24} className="text-blue-500 mx-auto mb-1.5 opacity-60" />
+                                                             <p className="font-bold text-xs text-slate-700 dark:text-slate-300">Route segments are calculated automatically from itinerary waypoints.</p>
+                                                             <p className="text-[10px] text-slate-400 mt-0.5">Use "View Full Route in Google Maps" below for live turn-by-turn navigation.</p>
+                                                         </div>
+                                                     )}
                                                      </div>
                                                  </div>
                                                  
@@ -1223,7 +1295,7 @@ export const SmartPlan: React.FC<SmartPlanProps> = ({
                                                 <Sparkles className="text-[#EAB308] fill-current" size={20} /> Curated Highlights
                                             </h3>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                {tripResult.highlights.map((h, i) => (
+                                                {(tripResult.highlights || []).map((h, i) => (
                                                     <div key={i} className="p-3 bg-slate-50 dark:bg-slate-900 rounded-[1rem] flex items-center gap-3">
                                                         <div className="w-7 h-7 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-xs shrink-0">{i+1}</div>
                                                         <span className="text-xs font-bold text-[#475569] dark:text-slate-300 leading-tight">{h}</span>
@@ -1321,7 +1393,7 @@ export const SmartPlan: React.FC<SmartPlanProps> = ({
 
                                 {activeTab === 'Itinerary' && (
                                     <div className="max-w-3xl mx-auto space-y-4 pb-24 p-4">
-                                        {tripResult.itinerary.map((day, i) => (
+                                        {(tripResult.itinerary || []).map((day, i) => (
                                             <div key={i} className="bg-white dark:bg-slate-800 p-4 rounded-[1.5rem] border border-slate-100 dark:border-slate-700 shadow-sm">
                                                 <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-50 dark:border-slate-700">
                                                     <div>
@@ -1331,20 +1403,48 @@ export const SmartPlan: React.FC<SmartPlanProps> = ({
                                                     <div className="bg-[#EEF2FF] p-2.5 rounded-xl text-[#4F46E5]"><Calendar size={20} /></div>
                                                 </div>
                                                 <div className="space-y-3">
-                                                    {day.activities.map((act, j) => (
-                                                        <div key={j} className="flex gap-4 p-4 bg-slate-50 dark:bg-slate-900 rounded-[1rem]">
-                                                            <div className="text-[#4F46E5] font-black text-[10px] uppercase tracking-widest pt-1 w-16 shrink-0">{act.time}</div>
-                                                            <div className="flex-1">
-                                                                <p className="font-black text-sm text-[#1E293B] dark:text-white mb-0.5">{act.name}</p>
-                                                                <p className="text-xs text-[#64748B] dark:text-slate-400 font-medium leading-relaxed">{act.description}</p>
+                                                    {(day.activities || []).map((act, j) => {
+                                                        const isReplanned = !!(act as any).isReplanned;
+                                                        return (
+                                                            <div key={`${day.day || i}-${j}`} className={`flex gap-4 p-4 rounded-[1.25rem] relative transition-all ${isReplanned ? 'bg-emerald-50/70 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/60 shadow-sm' : 'bg-slate-50 dark:bg-slate-900/70 border border-slate-100 dark:border-slate-800'}`}>
+                                                                <div className="text-[#4F46E5] font-black text-[10px] uppercase tracking-widest pt-1 w-16 shrink-0">{act.time}</div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="flex items-start justify-between gap-3">
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                                                                                <p className="font-black text-sm text-[#1E293B] dark:text-white leading-snug">{act.name}</p>
+                                                                                {isReplanned && (
+                                                                                    <span className="inline-block text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 rounded-md">
+                                                                                        ✓ Replanned
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                            <p className="text-xs text-[#64748B] dark:text-slate-400 font-medium leading-relaxed mt-0.5">{act.description}</p>
+                                                                        </div>
+                                                                        {/* Clear, always-visible Replan action button for EVERY activity */}
+                                                                        <button
+                                                                            onClick={() => setReplanTarget({
+                                                                                activity: act as ItineraryActivity,
+                                                                                activityIndex: j,
+                                                                                dayIndex: i,
+                                                                            })}
+                                                                            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/25 hover:bg-amber-100 dark:hover:bg-amber-900/50 border border-amber-200 dark:border-amber-700/60 rounded-xl transition-all shadow-sm hover:scale-[1.02] active:scale-[0.98]"
+                                                                            title="Can't visit this stop? Click to replan with AI"
+                                                                        >
+                                                                            <RefreshCw size={13} className="text-amber-600 dark:text-amber-400" />
+                                                                            <span>Replan</span>
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    ))}
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 )}
+
 
 
                                 {activeTab === 'Accommodation' && (
@@ -1505,6 +1605,26 @@ export const SmartPlan: React.FC<SmartPlanProps> = ({
             )}
         </div>
       </div>
+
+      {/* Feature 2: Dynamic Trip Replanning Modal */}
+      {replanTarget && tripResult && (
+        <ReplanModal
+          isOpen={!!replanTarget}
+          onClose={() => setReplanTarget(null)}
+          activity={replanTarget.activity}
+          activityIndex={replanTarget.activityIndex}
+          dayNumber={tripResult.itinerary[replanTarget.dayIndex]?.day ?? replanTarget.dayIndex + 1}
+          dayActivities={(tripResult.itinerary[replanTarget.dayIndex]?.activities as ItineraryActivity[]) ?? []}
+          destination={tripResult.destination}
+          dates={tripResult.dates}
+          budget={tripInput.budget || tripResult.totalEstimatedCost}
+          theme={tripInput.theme}
+          userPreferences={userPreferences}
+          userId={userId}
+          onApply={handleApplyReplan}
+          currencySymbol={currency.symbol}
+        />
+      )}
     </div>
   );
 };

@@ -33,7 +33,7 @@ export const TRANSLATIONS: any = {
     'nav_emergency': 'Emergency',
     'nav_profile': 'My Account',
     'nav_login': 'Log In',
-    'nav_my_plans': 'My Plans',
+    'nav_my_plans': 'My_Plans',
     'nav_add': 'Add',
     'hero_title': 'Your Stress-Free Travel Planner',
     'hero_subtitle': 'Discover destinations, build itineraries, and travel smarter with our AI companion.',

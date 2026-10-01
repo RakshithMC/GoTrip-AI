@@ -57,12 +57,12 @@ export const TopNav: React.FC<TopNavProps> = ({
         </button>
 
         <button
-          onClick={() => navigate('search')}
+          onClick={() => navigate('my-plans')}
           className={`font-medium hover:text-blue-600 capitalize transition-colors ${
-            currentRoute === 'search' ? 'text-blue-600' : 'text-gray-500 dark:text-gray-400'
+            currentRoute === 'my-plans' ? 'text-blue-600' : 'text-gray-500 dark:text-gray-400'
           }`}
         >
-          {t('nav_explore')}
+          {t('nav_my_plans')}
         </button>
 
         <button

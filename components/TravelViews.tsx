@@ -229,7 +229,7 @@ export const SearchView: React.FC<ViewProps & { query: string; setQuery: (q: str
           </div>
         )}
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-black text-slate-900 dark:text-white">{query ? `${t('cities_matching')} "${query}"` : t('all_destinations')}</h2>
+          <h2 className="text-2xl font-black text-slate-900 dark:text-white">{query ? `${t('Cities matching')} "${query}"` : t('all_destinations')}</h2>
           <span className="text-sm font-bold text-gray-500 bg-white dark:bg-slate-800 px-4 py-1.5 rounded-full border border-gray-100 dark:border-slate-800">{matchingCities.length} {t('results')}</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">{matchingCities.map(city => (<div key={city.id} onClick={() => handleSearch(city.name)} className="bg-white dark:bg-slate-800 rounded-[2rem] overflow-hidden shadow-sm hover:shadow-xl transition-all group cursor-pointer border border-gray-100 dark:border-slate-700"><div className="aspect-[4/3] overflow-hidden"><ImageWithFallback src={city.image} alt={city.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" /></div><div className="p-5"><div className="flex justify-between items-start mb-2"><h3 className="font-black text-xl text-slate-900 dark:text-white group-hover:text-blue-600 transition-colors">{city.name}</h3><span className="text-[10px] font-black text-blue-600 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded uppercase tracking-widest">{city.country}</span></div><div className="flex items-center gap-4 text-xs font-bold text-gray-400"><span className="flex items-center gap-1"><Plane size={14} /> From {formatCurrency(city.baseFlight, userProfile.currency)}</span><span className="flex items-center gap-1"><Hotel size={14} /> {formatCurrency(city.avgHotel, userProfile.currency)}/nt</span></div></div></div>))}</div>
@@ -746,7 +746,7 @@ export const MyPlansView: React.FC<ViewProps & { plans: DreamTripResult[]; onVie
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-24 font-sans">
       <div className="max-w-4xl mx-auto px-6 py-12">
         <h1 className="text-3xl font-black text-slate-900 dark:text-white mb-2">{t('my_plans_title')}</h1>
-        <p className="text-gray-500 dark:text-gray-400 mb-8 font-medium">{t('manage_plans_sub')}</p>
+        <p className="text-gray-500 dark:text-gray-400 mb-8 font-medium">{t(' ')}</p>
         
         {plans.length === 0 ? (
           <div className="text-center py-20 bg-white dark:bg-slate-800 rounded-[2.5rem] border border-gray-100 dark:border-slate-700 shadow-sm">
@@ -765,7 +765,7 @@ export const MyPlansView: React.FC<ViewProps & { plans: DreamTripResult[]; onVie
               <div key={plan.id} onClick={() => onViewPlan(plan)} className="bg-white dark:bg-slate-800 p-6 rounded-[2rem] border border-gray-100 dark:border-slate-700 shadow-sm hover:shadow-xl transition-all cursor-pointer group">
                 <div className="flex flex-col md:flex-row gap-6">
                   <div className="w-full md:w-32 h-32 rounded-2xl overflow-hidden shrink-0 bg-gray-100 dark:bg-slate-700">
-                    <ImageWithFallback src={plan.hotel.image} alt={plan.destination} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <ImageWithFallback src={plan.hotel?.image || "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80"} alt={plan.destination} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   </div>
                   <div className="flex-1 flex flex-col justify-between">
                     <div>
@@ -779,7 +779,7 @@ export const MyPlansView: React.FC<ViewProps & { plans: DreamTripResult[]; onVie
                         <Calendar size={14} /> {plan.dates}
                       </p>
                       <div className="flex flex-wrap gap-2">
-                        {plan.highlights.slice(0, 2).map((h, i) => (
+                        {(plan.highlights || []).slice(0, 2).map((h, i) => (
                           <span key={i} className="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded">
                             {h}
                           </span>
